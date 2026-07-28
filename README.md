@@ -13,6 +13,8 @@ configurable layout, filtering, and hotkeys.
 
 ![Party frames in Healing mode with live health bars](images/partypulse3.png)
 
+![Party Pulse settings menu — meter, party frames, and health bar options](images/partypulse4.png)
+
 ## Requirements
 
 - Minecraft **1.20.1**
