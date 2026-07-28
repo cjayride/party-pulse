@@ -5,44 +5,21 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.World;
+import net.spell_engine.api.spell.Spell;
+import net.spell_engine.api.spell.SpellInfo;
+import net.spell_engine.internals.SpellHelper;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Collection;
 
 /**
- * Optional Spell Engine hook. Uses string targets and Object placeholders so
- * the mixin class can load even when Spell Engine is absent; the mixin plugin
- * skips applying it in that case.
+ * Optional Spell Engine hook (skipped by PartyPulseMixinPlugin when the mod
+ * is absent). Captures effective healing and attributes it to the caster.
  */
-@Mixin(targets = "net.spell_engine.internals.SpellHelper", remap = false)
+@Mixin(value = SpellHelper.class, remap = false)
 public abstract class SpellEngineHealingMixin {
-
-	@Unique
-	private static final ThreadLocal<LivingEntity> partyPulse$currentCaster = new ThreadLocal<>();
-
-	@Inject(method = "performImpact", at = @At("HEAD"), require = 0)
-	private static void partyPulse$stashCaster(
-			World world,
-			LivingEntity caster,
-			Entity target,
-			Object spellInfo,
-			Object impact,
-			Object context,
-			Collection<ServerPlayerEntity> trackers,
-			CallbackInfo ci
-	) {
-		partyPulse$currentCaster.set(caster);
-	}
-
-	@Inject(method = "performImpact", at = @At("RETURN"), require = 0)
-	private static void partyPulse$clearCaster(CallbackInfo ci) {
-		partyPulse$currentCaster.remove();
-	}
 
 	@Redirect(
 			method = "performImpact",
@@ -53,12 +30,21 @@ public abstract class SpellEngineHealingMixin {
 			),
 			require = 0
 	)
-	private static void partyPulse$captureHealingDone(LivingEntity healedEntity, float requestedAmount) {
+	private static void partyPulse$captureHealingDone(
+			LivingEntity healedEntity,
+			float requestedAmount,
+			World world,
+			LivingEntity caster,
+			Entity target,
+			SpellInfo spellInfo,
+			Spell.Impact impact,
+			SpellHelper.ImpactContext context,
+			Collection<ServerPlayerEntity> trackers
+	) {
 		float healthBefore = healedEntity.getHealth();
 		healedEntity.heal(requestedAmount);
 		float healingDone = healedEntity.getHealth() - healthBefore;
 
-		LivingEntity caster = partyPulse$currentCaster.get();
 		if (healingDone <= 0.0f || !(caster instanceof ServerPlayerEntity healer)) return;
 
 		PartyPulse.recordHealing(healer, healingDone, healer.getWorld().getTime());
