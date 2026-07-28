@@ -1,0 +1,59 @@
+plugins {
+	id 'fabric-loom' version '1.6.+'
+	id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	mavenCentral()
+
+	// Clean, un-cached bypass connection to Modrinth's Maven registry repository
+	exclusiveContent {
+		forRepository {
+			maven {
+				name = "Modrinth"
+				url = "https://api.modrinth.com/maven"
+			}
+		}
+		filter {
+			includeGroup "maven.modrinth"
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:0.92.2+1.20.1"
+	modImplementation "net.fabricmc.fabric-api:fabric-lifecycle-events-v1:0.7.4+1.20.1"
+
+	// Securely pulls down the Cardinal Components base bundle
+	modImplementation "maven.modrinth:cardinal-components-api:5.2.2"
+
+	// Pulls down the matching Trinkets bundle
+	modImplementation "maven.modrinth:trinkets:3.7.2"
+
+	// Compile-only APIs for optional healing mixin (not bundled into the jar).
+	modCompileOnly "maven.modrinth:spell-engine:0.15.12+1.20.1"
+	modCompileOnly "maven.modrinth:spell-power:0.12.0+1.20.1"
+}
+
+processResources {
+	inputs.property "version", project.version
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}

@@ -1,0 +1,40 @@
+{
+	"schemaVersion": 1,
+	"id": "party-pulse",
+	"version": "${version}",
+	"name": "Party Pulse",
+	"description": "Customizable party frames with live health, Damage, DPS, Healing Done, and HPS tracking for Fabric RPG modpacks.",
+	"authors": [
+		"CJayride"
+	],
+	"contact": {
+		"sources": "https://github.com/CJayride/party-pulse",
+		"issues": "https://github.com/CJayride/party-pulse/issues"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/party-pulse/icon.png",
+	"environment": "*",
+	"mixins": [
+		"party-pulse.mixins.json"
+	],
+	"entrypoints": {
+		"main": [
+			"cjayride.partypulse.PartyPulse"
+		],
+		"client": [
+			"cjayride.partypulse.PartyPulseClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.15.0",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"spell_engine": "*",
+		"spell_power": "*",
+		"openpartiesandclaims": "*",
+		"trinkets": "*"
+	}
+}
