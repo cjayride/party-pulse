@@ -5,6 +5,14 @@ Party frames and combat metrics for Fabric 1.20.1 RPG modpacks.
 Track live party health, Damage Done, DPS, Healing Done, and HPS — with
 configurable layout, filtering, and hotkeys.
 
+## Screenshots
+
+![Party Pulse overview — party frames, class icons, damage and healing meters](images/partypulse1.png)
+
+![Party frames tracking Damage Done for three players](images/partypulse2.png)
+
+![Party frames in Healing mode with live health bars](images/partypulse3.png)
+
 ## Requirements
 
 - Minecraft **1.20.1**
