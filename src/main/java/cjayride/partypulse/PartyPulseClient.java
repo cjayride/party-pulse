@@ -26,9 +26,11 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class PartyPulseClient implements ClientModInitializer {
@@ -63,6 +65,14 @@ public class PartyPulseClient implements ClientModInitializer {
 
     private static final Map<UUID, Double> damageResetBaselines = new HashMap<>();
     private static final Map<UUID, Double> healingResetBaselines = new HashMap<>();
+    /** Damage/healing shown on this client; only grows while the player is in metric range. */
+    private static final Map<UUID, Double> displayedDamage = new HashMap<>();
+    private static final Map<UUID, Double> displayedHealing = new HashMap<>();
+    private static final Map<UUID, Double> displayedDps = new HashMap<>();
+    private static final Map<UUID, Double> displayedHps = new HashMap<>();
+    private static final Map<UUID, Double> damageRangeAnchor = new HashMap<>();
+    private static final Map<UUID, Double> healingRangeAnchor = new HashMap<>();
+    private static final Set<UUID> playersInMetricRange = new HashSet<>();
     private static final Map<UUID, ItemStack> lastKnownTrinketCache = new HashMap<>();
     private static final Map<UUID, Long> trinketCheckCooldowns = new HashMap<>();
     private static KeyBinding cycleMetricKey;
@@ -126,12 +136,14 @@ public class PartyPulseClient implements ClientModInitializer {
             healingResetBaselines.merge(uuid, stats.totalHealing, Double::sum);
         });
         clientPlayerStats.clear();
+        clearDisplayedMetrics();
     }
 
     private static void clearSessionCaches() {
         clientPlayerStats.clear();
         damageResetBaselines.clear();
         healingResetBaselines.clear();
+        clearDisplayedMetrics();
         openPacPartyMembers.clear();
         serverSyncedHealth.clear();
         serverSyncedMaxHealth.clear();
@@ -140,12 +152,59 @@ public class PartyPulseClient implements ClientModInitializer {
         localSessionResetTimestamp = 0L;
     }
 
-    private static double getMetricValue(PartyPulse.PlayerStats stats) {
+    private static void clearDisplayedMetrics() {
+        displayedDamage.clear();
+        displayedHealing.clear();
+        displayedDps.clear();
+        displayedHps.clear();
+        damageRangeAnchor.clear();
+        healingRangeAnchor.clear();
+        playersInMetricRange.clear();
+    }
+
+    /**
+     * In range: keep updating the on-screen totals from new combat.
+     * Out of range: freeze the last on-screen totals (never wipe to 0), and
+     * ignore damage/healing the player does while away so it does not jump
+     * the moment they walk back into range.
+     */
+    private static void syncDisplayedMetrics(MinecraftClient client, PlayerData player) {
+        PartyPulse.PlayerStats stats = clientPlayerStats.get(player.uuid);
+        double serverDamage = stats == null ? 0.0 : stats.totalDamage;
+        double serverHealing = stats == null ? 0.0 : stats.totalHealing;
+        double serverDps = stats == null ? 0.0 : stats.displayDps;
+        double serverHps = stats == null ? 0.0 : stats.displayHps;
+        boolean inRange = isWithinMetricRange(client, player);
+        boolean wasInRange = playersInMetricRange.contains(player.uuid);
+
+        if (inRange) {
+            if (!wasInRange) {
+                damageRangeAnchor.put(player.uuid, serverDamage);
+                healingRangeAnchor.put(player.uuid, serverHealing);
+            } else {
+                double damageAnchor = damageRangeAnchor.getOrDefault(player.uuid, serverDamage);
+                double healingAnchor = healingRangeAnchor.getOrDefault(player.uuid, serverHealing);
+                displayedDamage.put(player.uuid,
+                        displayedDamage.getOrDefault(player.uuid, 0.0) + (serverDamage - damageAnchor));
+                displayedHealing.put(player.uuid,
+                        displayedHealing.getOrDefault(player.uuid, 0.0) + (serverHealing - healingAnchor));
+                damageRangeAnchor.put(player.uuid, serverDamage);
+                healingRangeAnchor.put(player.uuid, serverHealing);
+            }
+            displayedDps.put(player.uuid, serverDps);
+            displayedHps.put(player.uuid, serverHps);
+            playersInMetricRange.add(player.uuid);
+        } else {
+            playersInMetricRange.remove(player.uuid);
+        }
+    }
+
+    private static double getDisplayedMetric(UUID uuid) {
         return switch (displayMode) {
-            case MODE_DPS -> stats.displayDps;
-            case MODE_HEALING -> stats.totalHealing;
-            case MODE_HPS -> stats.displayHps;
-            default -> stats.totalDamage;
+            case MODE_DPS -> displayedDps.getOrDefault(uuid, 0.0);
+            case MODE_HEALING -> displayedHealing.getOrDefault(uuid, 0.0);
+            case MODE_HPS -> displayedHps.getOrDefault(uuid, 0.0);
+            default -> displayedDamage.getOrDefault(uuid, 0.0);
         };
     }
 
@@ -311,6 +370,9 @@ public class PartyPulseClient implements ClientModInitializer {
             int scaledHeight = (int) (client.getWindow().getScaledHeight() / hudScale);
             int startX = (hudCorner == 1 || hudCorner == 3) ? scaledWidth - 160 - hudPaddingX : 10 + hudPaddingX;
             List<PlayerData> players = collectVisiblePlayers(client);
+            for (PlayerData player : players) {
+                syncDisplayedMetrics(client, player);
+            }
             players.sort((first, second) -> comparePlayers(client, first, second));
             int contentHeight = players.size() * (20 + hudBarHeight);
             int startY = (hudCorner == 2 || hudCorner == 3)
@@ -368,10 +430,8 @@ public class PartyPulseClient implements ClientModInitializer {
     }
 
     /**
-     * Combat metrics only count for players we can verify are close by:
-     * same dimension and within 128 blocks. A null entity means the player
-     * is in another dimension or out of render distance - either way their
-     * combat isn't happening around us, so their numbers are hidden.
+     * Same dimension and within 128 blocks. A missing entity means other
+     * dimension / out of render distance — treat as out of metric range.
      */
     private static boolean isWithinMetricRange(MinecraftClient client, PlayerData player) {
         if (player.uuid.equals(client.player.getUuid())) return true;
@@ -385,16 +445,11 @@ public class PartyPulseClient implements ClientModInitializer {
             return first.name.compareToIgnoreCase(second.name);
         }
         if (sortingType == 1) return first.name.compareToIgnoreCase(second.name);
-        PartyPulse.PlayerStats firstStats = clientPlayerStats.get(first.uuid);
-        PartyPulse.PlayerStats secondStats = clientPlayerStats.get(second.uuid);
-        double firstValue = (firstStats == null || !isWithinMetricRange(client, first)) ? 0 : getMetricValue(firstStats);
-        double secondValue = (secondStats == null || !isWithinMetricRange(client, second)) ? 0 : getMetricValue(secondStats);
-        int comparison = Double.compare(secondValue, firstValue);
+        int comparison = Double.compare(getDisplayedMetric(second.uuid), getDisplayedMetric(first.uuid));
         return comparison == 0 ? first.name.compareToIgnoreCase(second.name) : comparison;
     }
 
     private static void renderPlayerRow(MinecraftClient client, DrawContext context, PlayerData player, int x, int y) {
-        PartyPulse.PlayerStats stats = clientPlayerStats.getOrDefault(player.uuid, new PartyPulse.PlayerStats());
         PlayerListEntry entry = client.getNetworkHandler() == null ? null : client.getNetworkHandler().getPlayerListEntry(player.uuid);
         if (entry != null) context.drawTexture(entry.getSkinTexture(), x, y, 8, 8, 8, 8, 8, 8, 64, 64);
 
@@ -403,8 +458,7 @@ public class PartyPulseClient implements ClientModInitializer {
         context.drawText(client.textRenderer, Text.literal(player.name), x + 32, y, 0xFFFFFF, true);
 
         if (!hideNumbersOnly) {
-            double metric = isWithinMetricRange(client, player) ? getMetricValue(stats) : 0.0;
-            drawSmallText(context, client, " - " + formatMetric(metric),
+            drawSmallText(context, client, " - " + formatMetric(getDisplayedMetric(player.uuid)),
                     x + 32 + client.textRenderer.getWidth(player.name), y + 1, 0x9CA3AF);
         }
 
