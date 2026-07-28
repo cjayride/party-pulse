@@ -11,8 +11,6 @@ configurable layout, filtering, and hotkeys.
 
 ![Party frames tracking Damage Done for three players](images/partypulse2.png)
 
-![Party frames in Healing mode with live health bars](images/partypulse3.png)
-
 ![Party Pulse settings menu — meter, party frames, and health bar options](images/partypulse4.png)
 
 ## Requirements
@@ -52,14 +50,39 @@ damage to appear on your meter.
 
 ## Commands & hotkeys
 
-| Action | Default |
-| --- | --- |
-| Open settings | `/pulse menu` |
-| Cycle metric | `Ctrl` + bound Cycle key (default Home) |
-| Toggle Party / Nearby | `Ctrl` + bound Filter key (default End) |
-| Reset combat session | `Ctrl` + bound Reset key (default Delete) |
+All chat commands use the `/pulse` prefix. Keybinds require **Ctrl** plus the
+bound key (defaults below). Rebind under **Controls → Party Pulse**.
 
-Rebind keys under **Controls → Party Pulse**.
+### Keybinds
+
+| Hotkey | Action |
+| --- | --- |
+| `Ctrl` + `Home` | Cycle metric: Damage → DPS → Healing → HPS |
+| `Ctrl` + `End` | Toggle filter: Party ↔ Nearby |
+| `Ctrl` + `Delete` | Reset combat session totals to 0 |
+
+### Chat commands
+
+| Command | Action |
+| --- | --- |
+| `/pulse menu` | Open the settings screen |
+| `/pulse toggle` | Show or hide the entire HUD |
+| `/pulse mode` | Cycle Damage → DPS → Healing → HPS |
+| `/pulse filter` | Toggle Party ↔ Nearby |
+| `/pulse corner` | Move the HUD clockwise around screen corners |
+| `/pulse numbersonly` | Hide combat score numbers (frames + health only) |
+| `/pulse sorting` | Cycle sort: Ranked → A-Z → Self Top |
+| `/pulse values` | Toggle compact numbers (`12.3K` vs `12345`) |
+| `/pulse hptext` | Toggle health number text on the bar |
+| `/pulse reset` | Reset combat session totals to 0 |
+
+### Settings menu only
+
+These are available in `/pulse menu` (no chat command):
+
+- Meter **Scale** and **Opacity**
+- Party frame **Padding X / Y**
+- Health bar **height**, **HP text size**, **back plate opacity**, and **HP color**
 
 ## Building
 
