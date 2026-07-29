@@ -36,6 +36,7 @@ Do **not** upload `-sources.jar` or `-dev.jar`.
 ### Page content
 
 - Short summary from `README.md`
+- Note that it was tested with / intended for Prominence II: Hasturian Era
 - Screenshots: party frames in-game + `/pulse menu` settings
 - Link GitHub source / issues once the repo exists
 

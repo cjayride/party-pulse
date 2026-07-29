@@ -5,6 +5,11 @@ Party frames and combat metrics for Fabric 1.20.1 RPG modpacks.
 Track live party health, Damage Done, DPS, Healing Done, and HPS — with
 configurable layout, filtering, and hotkeys.
 
+**Built and tested for [Prominence II: Hasturian Era](https://www.curseforge.com/minecraft/modpacks/prominence-2-hasturian-era).**
+It is intended to be played with that pack (Spell Engine healing, party play,
+trinket class icons), and should also work in other Fabric 1.20.1 RPG setups
+that use the same optional mods.
+
 ## Screenshots
 
 ![Party Pulse overview — party frames, class icons, damage and healing meters](images/partypulse1.png)
