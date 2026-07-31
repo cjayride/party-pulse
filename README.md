@@ -112,4 +112,4 @@ notes only and are gitignored — builds pull compile-only APIs from Modrinth Ma
 
 Party Pulse is available under the [CC0 1.0](LICENSE) license.
 
-Support the project: [buymeacoffee.com/cjayride](https://buymeacoffee.com/cjayride)
+☕ If Party Pulse improves your gaming experience, you can [buy me a coffee](https://buymeacoffee.com/cjayride). ☕
