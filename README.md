@@ -10,7 +10,7 @@ It is intended to be played with that pack (Spell Engine healing, party play,
 trinket class icons), and should also work in other Fabric 1.20.1 RPG setups
 that use the same optional mods.
 
-If Party Pulse helps your runs, you can [buy me a coffee](https://buymeacoffee.com/cjayride).
+☕ If Party Pulse improves your gaming experience, you can [buy me a coffee](https://buymeacoffee.com/cjayride). ☕
 
 ## Screenshots
 
