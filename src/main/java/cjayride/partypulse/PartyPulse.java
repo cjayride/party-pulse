@@ -160,6 +160,36 @@ public class PartyPulse implements ModInitializer {
 		broadcastStats(healer, stats);
 	}
 
+	/**
+	 * Prevents LivingEntity.heal from double-counting heals already attributed
+	 * (e.g. Spell Engine caster credit via SpellEngineHealingMixin).
+	 */
+	private static final ThreadLocal<Boolean> HEAL_ATTRIBUTED = ThreadLocal.withInitial(() -> false);
+
+	public static void markHealAttributed() {
+		HEAL_ATTRIBUTED.set(true);
+	}
+
+	public static void clearHealAttributed() {
+		HEAL_ATTRIBUTED.set(false);
+	}
+
+	public static boolean isHealAttributed() {
+		return Boolean.TRUE.equals(HEAL_ATTRIBUTED.get());
+	}
+
+	/**
+	 * Credits effective (non-overheal) healing when {@link LivingEntity#heal(float)}
+	 * runs for a player and nothing else already attributed the heal — covers
+	 * self-heals like Death Strike, health potions / flasks, and similar.
+	 */
+	public static void recordUnattributedPlayerHeal(net.minecraft.entity.LivingEntity healed, float amount) {
+		if (amount <= 0.0f || isHealAttributed()) return;
+		if (healed.getWorld().isClient) return;
+		if (!(healed instanceof ServerPlayerEntity healer)) return;
+		recordHealing(healer, amount, healer.getWorld().getTime());
+	}
+
 	public static void syncPartyRoster(ServerPlayerEntity player) {
 		if (player == null || player.getServer() == null) return;
 		List<UUID> partyMembers = new ArrayList<>();

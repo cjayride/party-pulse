@@ -48,7 +48,9 @@ damage to appear on your meter.
 
 - Party frames with live health / max health
 - Damage Done and DPS tracking (post-mitigation, including friendly fire)
-- Healing Done and HPS when Spell Engine is present
+- Healing Done and HPS: Spell Engine heals credit the caster; self-heals
+  (e.g. Death Strike), health potions / flasks, and other `heal()` sources
+  credit the healed player (effective heal only — no overheal)
 - Cycle metrics: Damage → DPS → Healing → HPS
 - Party vs Nearby filter (Nearby uses a 128-block range)
 - Combat metrics only show for players within 128 blocks in your dimension;

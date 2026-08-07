@@ -9,7 +9,7 @@
 Upload only:
 
 ```text
-build/libs/party-pulse-1.0.0.jar
+build/libs/party-pulse-1.0.1.jar
 ```
 
 Do **not** upload `-sources.jar` or `-dev.jar`.

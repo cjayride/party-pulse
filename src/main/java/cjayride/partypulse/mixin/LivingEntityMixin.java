@@ -29,6 +29,27 @@ public class LivingEntityMixin {
     private boolean partyPulse$recorded;
     @Unique
     private DamageSource partyPulse$currentSource;
+    @Unique
+    private float partyPulse$healthBeforeHeal;
+
+    /**
+     * Effective healing (no overheal). Spell Engine heals are attributed to the
+     * caster separately and skipped here via {@link PartyPulse#isHealAttributed()}.
+     * Everything else that calls heal() — Death Strike self-heals, potions,
+     * flasks, regen — credits the healed player when they are a server player.
+     */
+    @Inject(method = "heal", at = @At("HEAD"))
+    private void partyPulse$beforeHeal(float amount, CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        partyPulse$healthBeforeHeal = self.getHealth();
+    }
+
+    @Inject(method = "heal", at = @At("RETURN"))
+    private void partyPulse$afterHeal(float amount, CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        float healingDone = self.getHealth() - partyPulse$healthBeforeHeal;
+        PartyPulse.recordUnattributedPlayerHeal(self, healingDone);
+    }
 
     @Inject(method = "applyDamage", at = @At("HEAD"))
     private void partyPulse$beforeApplyDamage(DamageSource source, float amount, CallbackInfo ci) {

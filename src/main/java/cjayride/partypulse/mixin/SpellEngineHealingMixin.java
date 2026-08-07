@@ -41,12 +41,18 @@ public abstract class SpellEngineHealingMixin {
 			SpellHelper.ImpactContext context,
 			Collection<ServerPlayerEntity> trackers
 	) {
-		float healthBefore = healedEntity.getHealth();
-		healedEntity.heal(requestedAmount);
-		float healingDone = healedEntity.getHealth() - healthBefore;
+		// Mark so LivingEntityMixin does not also credit the healed player.
+		PartyPulse.markHealAttributed();
+		try {
+			float healthBefore = healedEntity.getHealth();
+			healedEntity.heal(requestedAmount);
+			float healingDone = healedEntity.getHealth() - healthBefore;
 
-		if (healingDone <= 0.0f || !(caster instanceof ServerPlayerEntity healer)) return;
+			if (healingDone <= 0.0f || !(caster instanceof ServerPlayerEntity healer)) return;
 
-		PartyPulse.recordHealing(healer, healingDone, healer.getWorld().getTime());
+			PartyPulse.recordHealing(healer, healingDone, healer.getWorld().getTime());
+		} finally {
+			PartyPulse.clearHealAttributed();
+		}
 	}
 }
