@@ -50,7 +50,8 @@ damage to appear on your meter.
 - Damage Done and DPS tracking (post-mitigation, including friendly fire)
 - Healing Done and HPS: Spell Engine heals credit the caster; self-heals
   (e.g. Death Strike), health potions / flasks, and other `heal()` sources
-  credit the healed player (effective heal only — no overheal)
+  credit the healed player (effective heal only — no overheal). Compatible
+  with Prominence II 4.0 (does not steal Spell Engine's heal `@Redirect`)
 - Cycle metrics: Damage → DPS → Healing → HPS
 - Party vs Nearby filter (Nearby uses a 128-block range)
 - Combat metrics only show for players within 128 blocks in your dimension;
