@@ -33,10 +33,9 @@ public class LivingEntityMixin {
     private float partyPulse$healthBeforeHeal;
 
     /**
-     * Effective healing (no overheal). Spell Engine heals are attributed to the
-     * caster separately and skipped here via {@link PartyPulse#isHealAttributed()}.
-     * Everything else that calls heal() — Death Strike self-heals, potions,
-     * flasks, regen — credits the healed player when they are a server player.
+     * Effective healing (no overheal). If Spell Engine stashed a caster
+     * (Inject around performImpact — not a competing Redirect), credit that
+     * player; otherwise credit the healed server player (Death Strike, pots, food).
      */
     @Inject(method = "heal", at = @At("HEAD"))
     private void partyPulse$beforeHeal(float amount, CallbackInfo ci) {
@@ -48,7 +47,7 @@ public class LivingEntityMixin {
     private void partyPulse$afterHeal(float amount, CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
         float healingDone = self.getHealth() - partyPulse$healthBeforeHeal;
-        PartyPulse.recordUnattributedPlayerHeal(self, healingDone);
+        PartyPulse.recordEffectiveHeal(self, healingDone);
     }
 
     @Inject(method = "applyDamage", at = @At("HEAD"))

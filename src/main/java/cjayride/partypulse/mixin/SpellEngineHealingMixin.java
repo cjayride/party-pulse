@@ -10,18 +10,24 @@ import net.spell_engine.api.spell.SpellInfo;
 import net.spell_engine.internals.SpellHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Collection;
 
 /**
  * Optional Spell Engine hook (skipped by PartyPulseMixinPlugin when the mod
- * is absent). Captures effective healing and attributes it to the caster.
+ * is absent).
+ * <p>
+ * Does <b>not</b> {@code @Redirect} {@link LivingEntity#heal(float)} — Prominence /
+ * Prominent also redirects that call for priest-set bonuses. Competing redirects
+ * crash on join. Instead we stash the caster around the heal invoke; effective
+ * healing is measured in {@link LivingEntityMixin} and attributed to that caster.
  */
-@Mixin(value = SpellHelper.class, remap = false)
+@Mixin(value = SpellHelper.class, remap = false, priority = 500)
 public abstract class SpellEngineHealingMixin {
 
-	@Redirect(
+	@Inject(
 			method = "performImpact",
 			at = @At(
 					value = "INVOKE",
@@ -30,29 +36,55 @@ public abstract class SpellEngineHealingMixin {
 			),
 			require = 0
 	)
-	private static void partyPulse$captureHealingDone(
-			LivingEntity healedEntity,
-			float requestedAmount,
+	private static void partyPulse$stashSpellHealer(
 			World world,
 			LivingEntity caster,
 			Entity target,
 			SpellInfo spellInfo,
 			Spell.Impact impact,
 			SpellHelper.ImpactContext context,
-			Collection<ServerPlayerEntity> trackers
+			Collection<ServerPlayerEntity> trackers,
+			CallbackInfoReturnable<Boolean> cir
 	) {
-		// Mark so LivingEntityMixin does not also credit the healed player.
-		PartyPulse.markHealAttributed();
-		try {
-			float healthBefore = healedEntity.getHealth();
-			healedEntity.heal(requestedAmount);
-			float healingDone = healedEntity.getHealth() - healthBefore;
-
-			if (healingDone <= 0.0f || !(caster instanceof ServerPlayerEntity healer)) return;
-
-			PartyPulse.recordHealing(healer, healingDone, healer.getWorld().getTime());
-		} finally {
-			PartyPulse.clearHealAttributed();
+		if (caster instanceof ServerPlayerEntity healer) {
+			PartyPulse.setSpellEngineHealer(healer);
 		}
+	}
+
+	@Inject(
+			method = "performImpact",
+			at = @At(
+					value = "INVOKE",
+					target = "Lnet/minecraft/entity/LivingEntity;heal(F)V",
+					shift = At.Shift.AFTER,
+					remap = true
+			),
+			require = 0
+	)
+	private static void partyPulse$clearSpellHealerAfterHeal(
+			World world,
+			LivingEntity caster,
+			Entity target,
+			SpellInfo spellInfo,
+			Spell.Impact impact,
+			SpellHelper.ImpactContext context,
+			Collection<ServerPlayerEntity> trackers,
+			CallbackInfoReturnable<Boolean> cir
+	) {
+		PartyPulse.clearSpellEngineHealer();
+	}
+
+	@Inject(method = "performImpact", at = @At("RETURN"), require = 0)
+	private static void partyPulse$clearSpellHealerOnReturn(
+			World world,
+			LivingEntity caster,
+			Entity target,
+			SpellInfo spellInfo,
+			Spell.Impact impact,
+			SpellHelper.ImpactContext context,
+			Collection<ServerPlayerEntity> trackers,
+			CallbackInfoReturnable<Boolean> cir
+	) {
+		PartyPulse.clearSpellEngineHealer();
 	}
 }

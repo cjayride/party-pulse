@@ -161,33 +161,41 @@ public class PartyPulse implements ModInitializer {
 	}
 
 	/**
-	 * Prevents LivingEntity.heal from double-counting heals already attributed
-	 * (e.g. Spell Engine caster credit via SpellEngineHealingMixin).
+	 * Set around Spell Engine heal invokes (Inject, not Redirect) so
+	 * {@link #recordEffectiveHeal} credits the caster. Avoids competing with
+	 * Prominence/Prominent's {@code @Redirect} on the same heal call.
 	 */
-	private static final ThreadLocal<Boolean> HEAL_ATTRIBUTED = ThreadLocal.withInitial(() -> false);
+	private static final ThreadLocal<ServerPlayerEntity> SPELL_ENGINE_HEALER = new ThreadLocal<>();
 
-	public static void markHealAttributed() {
-		HEAL_ATTRIBUTED.set(true);
+	public static void setSpellEngineHealer(ServerPlayerEntity healer) {
+		SPELL_ENGINE_HEALER.set(healer);
 	}
 
-	public static void clearHealAttributed() {
-		HEAL_ATTRIBUTED.set(false);
+	public static void clearSpellEngineHealer() {
+		SPELL_ENGINE_HEALER.remove();
 	}
 
-	public static boolean isHealAttributed() {
-		return Boolean.TRUE.equals(HEAL_ATTRIBUTED.get());
+	public static ServerPlayerEntity getSpellEngineHealer() {
+		return SPELL_ENGINE_HEALER.get();
 	}
 
 	/**
-	 * Credits effective (non-overheal) healing when {@link LivingEntity#heal(float)}
-	 * runs for a player and nothing else already attributed the heal — covers
-	 * self-heals like Death Strike, health potions / flasks, and similar.
+	 * Credits effective (non-overheal) healing from {@link LivingEntity#heal(float)}.
+	 * Spell Engine heals credit the stashed caster; otherwise the healed player
+	 * (Death Strike, potions/flasks, food regen, etc.).
 	 */
-	public static void recordUnattributedPlayerHeal(net.minecraft.entity.LivingEntity healed, float amount) {
-		if (amount <= 0.0f || isHealAttributed()) return;
-		if (healed.getWorld().isClient) return;
-		if (!(healed instanceof ServerPlayerEntity healer)) return;
-		recordHealing(healer, amount, healer.getWorld().getTime());
+	public static void recordEffectiveHeal(net.minecraft.entity.LivingEntity healed, float amount) {
+		if (amount <= 0.0f || healed.getWorld().isClient) return;
+
+		ServerPlayerEntity spellHealer = getSpellEngineHealer();
+		if (spellHealer != null) {
+			recordHealing(spellHealer, amount, spellHealer.getWorld().getTime());
+			return;
+		}
+
+		if (healed instanceof ServerPlayerEntity healer) {
+			recordHealing(healer, amount, healer.getWorld().getTime());
+		}
 	}
 
 	public static void syncPartyRoster(ServerPlayerEntity player) {
