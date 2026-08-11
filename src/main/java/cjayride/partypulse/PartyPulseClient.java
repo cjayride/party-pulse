@@ -32,6 +32,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PartyPulseClient implements ClientModInitializer {
     public static final int MODE_DAMAGE = 0;
@@ -59,9 +60,10 @@ public class PartyPulseClient implements ClientModInitializer {
     public static long localSessionResetTimestamp;
 
     public static final List<UUID> openPacPartyMembers = new ArrayList<>();
-    public static final Map<UUID, Float> serverSyncedHealth = new HashMap<>();
-    public static final Map<UUID, Float> serverSyncedMaxHealth = new HashMap<>();
-    public static final Map<UUID, PartyPulse.PlayerStats> clientPlayerStats = new HashMap<>();
+    /** Written from net thread / client.execute; read while rendering HUD. */
+    public static final Map<UUID, Float> serverSyncedHealth = new ConcurrentHashMap<>();
+    public static final Map<UUID, Float> serverSyncedMaxHealth = new ConcurrentHashMap<>();
+    public static final Map<UUID, PartyPulse.PlayerStats> clientPlayerStats = new ConcurrentHashMap<>();
 
     private static final Map<UUID, Double> damageResetBaselines = new HashMap<>();
     private static final Map<UUID, Double> healingResetBaselines = new HashMap<>();
@@ -424,8 +426,23 @@ public class PartyPulseClient implements ClientModInitializer {
     }
 
     private static PlayerData createPlayerData(UUID uuid, String name, PlayerEntity player) {
-        float health = serverSyncedHealth.getOrDefault(uuid, player == null ? 20.0f : player.getHealth());
-        float maxHealth = serverSyncedMaxHealth.getOrDefault(uuid, player == null ? 20.0f : player.getMaxHealth());
+        Float syncedHealth = serverSyncedHealth.get(uuid);
+        Float syncedMaxHealth = serverSyncedMaxHealth.get(uuid);
+
+        // Prefer server sync so other-dimension party members keep real HP
+        // (client world has no entity there — the old fallback was a fake 20).
+        float health;
+        float maxHealth;
+        if (syncedHealth != null && syncedMaxHealth != null) {
+            health = syncedHealth;
+            maxHealth = syncedMaxHealth;
+        } else if (player != null) {
+            health = player.getHealth();
+            maxHealth = player.getMaxHealth();
+        } else {
+            health = 0.0f;
+            maxHealth = 0.0f;
+        }
         return new PlayerData(uuid, name, health, maxHealth, player);
     }
 
