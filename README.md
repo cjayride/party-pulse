@@ -55,7 +55,8 @@ damage to appear on your meter.
 - Cycle metrics: Damage → DPS → Healing → HPS
 - Party vs Nearby filter (Nearby uses a 128-block range)
 - Combat metrics only show for players within 128 blocks in your dimension;
-  health frames still update everywhere for party members
+  health frames still update everywhere for party members (server-synced,
+  including other dimensions)
 - Configurable corner, scale, opacity, bar height, HP text, sorting
 
 ## Commands & hotkeys

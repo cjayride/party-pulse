@@ -63,7 +63,11 @@ public class PartyPulse implements ModInitializer {
 		});
 
 		ServerPlayNetworking.registerGlobalReceiver(REQUEST_PARTY_PACKET, (server, player, handler, buf, responseSender) ->
-				server.execute(() -> syncPartyRoster(player)));
+				server.execute(() -> {
+					syncPartyRoster(player);
+					// Refresh combat + health for this client (covers other dimensions).
+					pushAllStatsTo(player);
+				}));
 	}
 
 	public static synchronized void saveStatsToJson() {
@@ -90,20 +94,33 @@ public class PartyPulse implements ModInitializer {
 
 	public static void broadcastStats(ServerPlayerEntity player, PlayerStats stats) {
 		if (player == null || player.getServer() == null) return;
-		long currentTick = player.getWorld().getTime();
-
 		for (ServerPlayerEntity recipient : player.getServer().getPlayerManager().getPlayerList()) {
-			PacketByteBuf buf = PacketByteBufs.create();
-			buf.writeUuid(player.getUuid());
-			buf.writeDouble(stats.totalDamage);
-			buf.writeDouble(stats.totalHealing);
-			buf.writeDouble(stats.getDPS(currentTick));
-			buf.writeDouble(stats.getHPS(currentTick));
-			buf.writeFloat(player.getHealth());
-			buf.writeFloat(player.getMaxHealth());
-			buf.writeLong(stats.lastActivityTime);
-			ServerPlayNetworking.send(recipient, STATS_SYNC_PACKET, buf);
+			sendStatsTo(recipient, player, stats);
 		}
+	}
+
+	/** Push every online player's stats/health to one recipient (party refresh). */
+	public static void pushAllStatsTo(ServerPlayerEntity recipient) {
+		if (recipient == null || recipient.getServer() == null) return;
+		for (ServerPlayerEntity other : recipient.getServer().getPlayerManager().getPlayerList()) {
+			PlayerStats stats = playerStats.computeIfAbsent(other.getUuid(), uuid -> new PlayerStats());
+			sendStatsTo(recipient, other, stats);
+		}
+	}
+
+	public static void sendStatsTo(ServerPlayerEntity recipient, ServerPlayerEntity subject, PlayerStats stats) {
+		if (recipient == null || subject == null || stats == null) return;
+		long currentTick = subject.getWorld().getTime();
+		PacketByteBuf buf = PacketByteBufs.create();
+		buf.writeUuid(subject.getUuid());
+		buf.writeDouble(stats.totalDamage);
+		buf.writeDouble(stats.totalHealing);
+		buf.writeDouble(stats.getDPS(currentTick));
+		buf.writeDouble(stats.getHPS(currentTick));
+		buf.writeFloat(subject.getHealth());
+		buf.writeFloat(subject.getMaxHealth());
+		buf.writeLong(stats.lastActivityTime);
+		ServerPlayNetworking.send(recipient, STATS_SYNC_PACKET, buf);
 	}
 
 	/**
