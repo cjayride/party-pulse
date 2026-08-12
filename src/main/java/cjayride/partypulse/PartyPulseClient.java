@@ -169,36 +169,48 @@ public class PartyPulseClient implements ClientModInitializer {
      * Out of range: freeze the last on-screen totals (never wipe to 0), and
      * ignore damage/healing the player does while away so it does not jump
      * the moment they walk back into range.
+     * <p>
+     * Wait until at least one server stats packet exists for this player before
+     * anchoring — otherwise the first sync can look like a huge damage spike
+     * (anchor was 0, then server total jumps to the real cumulative value).
      */
     private static void syncDisplayedMetrics(MinecraftClient client, PlayerData player) {
         PartyPulse.PlayerStats stats = clientPlayerStats.get(player.uuid);
-        double serverDamage = stats == null ? 0.0 : stats.totalDamage;
-        double serverHealing = stats == null ? 0.0 : stats.totalHealing;
-        double serverDps = stats == null ? 0.0 : stats.displayDps;
-        double serverHps = stats == null ? 0.0 : stats.displayHps;
         boolean inRange = isWithinMetricRange(client, player);
         boolean wasInRange = playersInMetricRange.contains(player.uuid);
 
-        if (inRange) {
-            if (!wasInRange) {
-                damageRangeAnchor.put(player.uuid, serverDamage);
-                healingRangeAnchor.put(player.uuid, serverHealing);
-            } else {
-                double damageAnchor = damageRangeAnchor.getOrDefault(player.uuid, serverDamage);
-                double healingAnchor = healingRangeAnchor.getOrDefault(player.uuid, serverHealing);
-                displayedDamage.put(player.uuid,
-                        displayedDamage.getOrDefault(player.uuid, 0.0) + (serverDamage - damageAnchor));
-                displayedHealing.put(player.uuid,
-                        displayedHealing.getOrDefault(player.uuid, 0.0) + (serverHealing - healingAnchor));
-                damageRangeAnchor.put(player.uuid, serverDamage);
-                healingRangeAnchor.put(player.uuid, serverHealing);
-            }
-            displayedDps.put(player.uuid, serverDps);
-            displayedHps.put(player.uuid, serverHps);
-            playersInMetricRange.add(player.uuid);
-        } else {
+        if (!inRange) {
             playersInMetricRange.remove(player.uuid);
+            return;
         }
+
+        // Not yet: avoid anchoring to 0 before the first STATS_SYNC arrives.
+        if (stats == null) return;
+
+        double serverDamage = stats.totalDamage;
+        double serverHealing = stats.totalHealing;
+        double serverDps = stats.displayDps;
+        double serverHps = stats.displayHps;
+
+        if (!wasInRange) {
+            // Entering range: only damage/healing from this moment forward counts.
+            damageRangeAnchor.put(player.uuid, serverDamage);
+            healingRangeAnchor.put(player.uuid, serverHealing);
+            displayedDamage.putIfAbsent(player.uuid, 0.0);
+            displayedHealing.putIfAbsent(player.uuid, 0.0);
+        } else {
+            double damageAnchor = damageRangeAnchor.getOrDefault(player.uuid, serverDamage);
+            double healingAnchor = healingRangeAnchor.getOrDefault(player.uuid, serverHealing);
+            displayedDamage.put(player.uuid,
+                    displayedDamage.getOrDefault(player.uuid, 0.0) + (serverDamage - damageAnchor));
+            displayedHealing.put(player.uuid,
+                    displayedHealing.getOrDefault(player.uuid, 0.0) + (serverHealing - healingAnchor));
+            damageRangeAnchor.put(player.uuid, serverDamage);
+            healingRangeAnchor.put(player.uuid, serverHealing);
+        }
+        displayedDps.put(player.uuid, serverDps);
+        displayedHps.put(player.uuid, serverHps);
+        playersInMetricRange.add(player.uuid);
     }
 
     private static double getDisplayedMetric(UUID uuid) {
