@@ -12,6 +12,10 @@ that use the same optional mods.
 
 ☕ If Party Pulse improves your gaming experience, you can [buy me a coffee](https://buymeacoffee.com/cjayride). ☕
 
+## Video
+
+[![Party Pulse — DPS & Healing Meter Mod for Minecraft 1.20.1](https://img.youtube.com/vi/_KdgEkVwiU0/maxresdefault.jpg)](https://youtu.be/_KdgEkVwiU0)
+
 ## Screenshots
 
 ![Party Pulse overview — party frames, class icons, damage and healing meters](images/partypulse1.png)
